@@ -1,0 +1,13 @@
+{
+  "name": "@tsunagu-care/supabase",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "migrate": "supabase db push",
+    "seed": "supabase db reset --seed-only",
+    "generate-types": "supabase gen types typescript --local > ./types/database.ts"
+  },
+  "devDependencies": {
+    "supabase": "^1.200.0"
+  }
+}

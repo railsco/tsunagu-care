@@ -1,0 +1,32 @@
+{
+  "name": "tsunagu-care",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ケアマネージャーと利用者家族をつなぐプラットフォーム「つなぐケア」",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "db:migrate": "pnpm --filter supabase migrate",
+    "db:seed": "pnpm --filter supabase seed",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "keywords": [
+    "care",
+    "healthcare",
+    "monorepo"
+  ],
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "react-native-worklets-core": "^1.6.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "~19.0.0",
+      "@types/react-dom": "~19.0.0"
+    }
+  }
+}

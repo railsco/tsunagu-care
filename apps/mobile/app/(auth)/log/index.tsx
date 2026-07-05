@@ -15,6 +15,7 @@ import { LogForm } from '@/components/log/LogForm';
 import { useCareReceiver } from '@/hooks/useCareReceiver';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { confirmDialog } from '@/lib/errors';
 
 import type { ScoreValue } from '@tsunagu-care/shared';
 
@@ -29,31 +30,40 @@ type LogData = {
   photo_urls: string[];
 };
 
-const uploadPhotos = async (localUris: string[]): Promise<string[]> => {
+const uploadPhotos = async (
+  localUris: string[]
+): Promise<{ urls: string[]; failedCount: number }> => {
   const urls: string[] = [];
+  let failedCount = 0;
   for (const uri of localUris) {
-    const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-    const path = `daily-logs/${filename}`;
+    try {
+      const filename = `${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const path = `daily-logs/${filename}`;
 
-    const response = await fetch(uri);
-    const blob = await response.blob();
+      const response = await fetch(uri);
+      const blob = await response.blob();
 
-    const { error } = await supabase.storage
-      .from('photos')
-      .upload(path, blob, { contentType: 'image/jpeg' });
+      const { error } = await supabase.storage
+        .from('photos')
+        .upload(path, blob, { contentType: 'image/jpeg' });
 
-    if (error) {
+      if (error) {
+        console.error('Photo upload failed:', error);
+        failedCount++;
+        continue;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('photos')
+        .getPublicUrl(path);
+
+      urls.push(publicUrl);
+    } catch (error) {
       console.error('Photo upload failed:', error);
-      continue;
+      failedCount++;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('photos')
-      .getPublicUrl(path);
-
-    urls.push(publicUrl);
   }
-  return urls;
+  return { urls, failedCount };
 };
 
 export default function LogScreen() {
@@ -145,9 +155,18 @@ export default function LogScreen() {
       ].filter(Boolean).join('\n\n');
 
       // Upload photos to Supabase Storage and get public URLs
-      const photoUrls = data.photo_urls.length > 0
+      const { urls: photoUrls, failedCount } = data.photo_urls.length > 0
         ? await uploadPhotos(data.photo_urls)
-        : [];
+        : { urls: [] as string[], failedCount: 0 };
+
+      if (failedCount > 0) {
+        const proceed = await confirmDialog(
+          '写真のアップロードに失敗',
+          `${data.photo_urls.length}枚中${failedCount}枚の写真をアップロードできませんでした。\nアップロードできた分だけで記録を保存しますか？`,
+          '保存する'
+        );
+        if (!proceed) return;
+      }
 
       const logPayload = {
         care_receiver_id: careReceiver.id,
@@ -164,10 +183,11 @@ export default function LogScreen() {
 
       if (isUpdate) {
         // UPSERT: 既存の記録を更新
+        // onConflictはユニーク制約 (care_receiver_id, log_date, family_member_id) と一致させる
         const { error } = await supabase
           .from('daily_logs')
           .upsert(logPayload, {
-            onConflict: 'care_receiver_id,log_date',
+            onConflict: 'care_receiver_id,log_date,family_member_id',
           });
 
         if (error) throw error;

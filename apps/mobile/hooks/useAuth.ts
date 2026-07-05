@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { supabase } from '@/lib/supabase';
 import { getFamilyMemberByAuthId, checkUserRole } from '@/lib/auth';
+import { showError } from '@/lib/errors';
 
 export function useAuth() {
   const {
@@ -39,6 +40,7 @@ export function useAuth() {
             setFamilyMember(member);
           } catch (error) {
             console.error('Failed to fetch family member:', error);
+            showError('利用者情報の取得に失敗しました。通信環境をご確認のうえアプリを再起動してください');
           }
         }
       } catch (error) {
@@ -63,6 +65,7 @@ export function useAuth() {
             setFamilyMember(member);
           } catch (error) {
             console.error('Failed to fetch family member:', error);
+            showError('利用者情報の取得に失敗しました。通信環境をご確認のうえ再度ログインしてください');
           }
         } else if (event === 'SIGNED_OUT') {
           reset();

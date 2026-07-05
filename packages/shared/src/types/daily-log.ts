@@ -2,11 +2,29 @@
 // DailyLog スコア関連の型とラベル
 // ============================================
 
+import type { ScoreValue } from './database';
+
 // スコア値（1〜5）
 export type MoodLevel = 1 | 2 | 3 | 4 | 5;
 export type AppetiteLevel = 1 | 2 | 3 | 4 | 5;
 export type SleepQualityLevel = 1 | 2 | 3 | 4 | 5;
 export type ActivityLevel = 1 | 2 | 3 | 4 | 5;
+
+// --------------------------------------------
+// 汎用スコア絵文字（項目共通のバッジ表示用）
+// --------------------------------------------
+export const scoreEmojis: Record<ScoreValue, string> = {
+  1: '😢',
+  2: '😕',
+  3: '😐',
+  4: '🙂',
+  5: '😊',
+} as const;
+
+export function getScoreEmoji(score: number | null | undefined): string {
+  if (score == null) return '➖';
+  return scoreEmojis[score as ScoreValue] ?? '😐';
+}
 
 // --------------------------------------------
 // 気分（Mood）ラベル

@@ -11,7 +11,7 @@ import { LogTimeline } from '@/components/daily-log/LogTimeline';
 import { MoodChart } from '@/components/daily-log/MoodChart';
 import { FeedbackSection } from '@/components/feedback/FeedbackSection';
 import { calculateAge, formatDate } from '@/lib/utils';
-import { GENDER_LABELS, FAMILY_ROLE_LABELS } from '@tsunagu-care/shared';
+import { GENDER_LABELS, FAMILY_ROLE_LABELS, getCareLevelGroup } from '@tsunagu-care/shared';
 import type {
   CareReceiverWithRelations,
   DailyLogWithRelations,
@@ -24,21 +24,16 @@ interface PageProps {
 
 // 要介護度の色を取得
 function getCareLevelStyle(careLevel: string | null): string {
-  if (!careLevel) return 'bg-gray-100 text-gray-600';
-
-  const level = careLevel.toLowerCase();
-
-  if (level.includes('支援')) {
-    return 'bg-green-100 text-green-700';
+  switch (getCareLevelGroup(careLevel)) {
+    case 'support':
+      return 'bg-green-100 text-green-700';
+    case 'care1-2':
+      return 'bg-yellow-100 text-yellow-700';
+    case 'care3-5':
+      return 'bg-red-100 text-red-700';
+    default:
+      return 'bg-gray-100 text-gray-600';
   }
-  if (level.includes('介護1') || level.includes('介護2')) {
-    return 'bg-yellow-100 text-yellow-700';
-  }
-  if (level.includes('介護3') || level.includes('介護4') || level.includes('介護5')) {
-    return 'bg-red-100 text-red-700';
-  }
-
-  return 'bg-gray-100 text-gray-600';
 }
 
 async function getReceiver(id: string): Promise<CareReceiverWithRelations | null> {

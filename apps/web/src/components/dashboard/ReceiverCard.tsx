@@ -5,6 +5,7 @@ import { AlertTriangle, MessageSquare } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatRelativeDate } from '@/lib/utils';
+import { getCareLevelGroup } from '@tsunagu-care/shared';
 import type { ReceiverWithStats } from '@/app/dashboard/page';
 
 interface ReceiverCardProps {
@@ -13,21 +14,16 @@ interface ReceiverCardProps {
 
 // 要介護度の色を取得
 function getCareLevelStyle(careLevel: string | null): { bg: string; text: string } {
-  if (!careLevel) return { bg: 'bg-gray-100', text: 'text-gray-600' };
-
-  const level = careLevel.toLowerCase();
-
-  if (level.includes('支援')) {
-    return { bg: 'bg-green-100', text: 'text-green-700' };
+  switch (getCareLevelGroup(careLevel)) {
+    case 'support':
+      return { bg: 'bg-green-100', text: 'text-green-700' };
+    case 'care1-2':
+      return { bg: 'bg-yellow-100', text: 'text-yellow-700' };
+    case 'care3-5':
+      return { bg: 'bg-red-100', text: 'text-red-700' };
+    default:
+      return { bg: 'bg-gray-100', text: 'text-gray-600' };
   }
-  if (level.includes('介護1') || level.includes('介護2')) {
-    return { bg: 'bg-yellow-100', text: 'text-yellow-700' };
-  }
-  if (level.includes('介護3') || level.includes('介護4') || level.includes('介護5')) {
-    return { bg: 'bg-red-100', text: 'text-red-700' };
-  }
-
-  return { bg: 'bg-gray-100', text: 'text-gray-600' };
 }
 
 // スコアから絵文字を取得

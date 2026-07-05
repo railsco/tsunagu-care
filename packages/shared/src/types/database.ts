@@ -1,6 +1,9 @@
 // ============================================
 // Supabase テーブル型定義
 // ============================================
+// スキーマ変更時は packages/supabase/migrations/ と必ず同期させること。
+// supabase CLI が使える環境では `pnpm --filter supabase gen:types` で
+// 生成型と差分がないか確認できる。
 
 // nullableフィールドをoptionalにするユーティリティ型
 type NullableKeys<T> = {
@@ -94,9 +97,10 @@ export type FamilyMember = {
   role: FamilyRole;
   is_primary: boolean;
   created_at: string;
+  updated_at: string;
 };
 
-export type FamilyMemberInsert = MakeNullableOptional<Omit<FamilyMember, 'id' | 'created_at'>> & Partial<Pick<FamilyMember, 'id' | 'role' | 'is_primary'>>;
+export type FamilyMemberInsert = MakeNullableOptional<Omit<FamilyMember, 'id' | 'created_at' | 'updated_at'>> & Partial<Pick<FamilyMember, 'id' | 'role' | 'is_primary'>>;
 
 export type FamilyMemberUpdate = Partial<FamilyMemberInsert>;
 
@@ -142,11 +146,20 @@ export type Feedback = {
   manager_notes: string | null;
   created_at: string;
   addressed_at: string | null;
+  updated_at: string;
 };
 
-export type FeedbackInsert = MakeNullableOptional<Omit<Feedback, 'id' | 'created_at' | 'addressed_at'>> & Partial<Pick<Feedback, 'id' | 'is_anonymous' | 'status'>>;
+export type FeedbackInsert = MakeNullableOptional<Omit<Feedback, 'id' | 'created_at' | 'updated_at' | 'addressed_at'>> & Partial<Pick<Feedback, 'id' | 'is_anonymous' | 'status'>>;
 
-export type FeedbackUpdate = Partial<Omit<FeedbackInsert, 'care_receiver_id' | 'family_member_id' | 'category' | 'content'>>;
+export type FeedbackUpdate = Partial<Omit<FeedbackInsert, 'care_receiver_id' | 'family_member_id' | 'category' | 'content'>> & { addressed_at?: string | null };
+
+// フィードバック読み取り用VIEW（feedbacks_view）の行型。
+// 匿名投稿では family_member_id / name / relation が投稿者本人以外に NULL で返る。
+export type FeedbackViewRow = Omit<Feedback, 'family_member_id'> & {
+  family_member_id: string | null;
+  family_member_name: string | null;
+  family_member_relation: string | null;
+};
 
 // --------------------------------------------
 // SatisfactionSurvey（満足度調査）
@@ -161,9 +174,10 @@ export type SatisfactionSurvey = {
   communication_score: ScoreValue | null;
   comment: string | null;
   created_at: string;
+  updated_at: string;
 };
 
-export type SatisfactionSurveyInsert = MakeNullableOptional<Omit<SatisfactionSurvey, 'id' | 'created_at'>> & Partial<Pick<SatisfactionSurvey, 'id'>>;
+export type SatisfactionSurveyInsert = MakeNullableOptional<Omit<SatisfactionSurvey, 'id' | 'created_at' | 'updated_at'>> & Partial<Pick<SatisfactionSurvey, 'id'>>;
 
 export type SatisfactionSurveyUpdate = Partial<SatisfactionSurveyInsert>;
 
@@ -182,18 +196,21 @@ export type CareManagerWithRelations = CareManager & {
 };
 
 export type DailyLogWithRelations = DailyLog & {
-  care_receiver?: CareReceiver | null;
-  family_member?: FamilyMember | null;
+  care_receiver?: Pick<CareReceiver, 'id' | 'name'> | null;
+  family_member?: Pick<FamilyMember, 'id' | 'name' | 'relation'> | null;
 };
 
 export type FeedbackWithRelations = Feedback & {
-  care_receiver?: CareReceiver | null;
-  family_member?: FamilyMember | null;
+  care_receiver?: Pick<CareReceiver, 'id' | 'name'> | null;
+  family_member?: Pick<FamilyMember, 'id' | 'name' | 'relation'> | null;
 };
 
 // --------------------------------------------
-// Database型（Supabase生成型との互換用）
+// Database型（Supabase生成型と同じ構造）
 // --------------------------------------------
+// Relationships を埋めることで embedded select
+// （例: `family_member:family_members(...)`）の型推論が効く。
+// foreignKeyName は Postgres のデフォルト命名（<table>_<column>_fkey）。
 export type Database = {
   public: {
     Tables: {
@@ -207,40 +224,133 @@ export type Database = {
         Row: CareManager;
         Insert: CareManagerInsert;
         Update: CareManagerUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'care_managers_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       care_receivers: {
         Row: CareReceiver;
         Insert: CareReceiverInsert;
         Update: CareReceiverUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'care_receivers_care_manager_id_fkey';
+            columns: ['care_manager_id'];
+            isOneToOne: false;
+            referencedRelation: 'care_managers';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       family_members: {
         Row: FamilyMember;
         Insert: FamilyMemberInsert;
         Update: FamilyMemberUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'family_members_care_receiver_id_fkey';
+            columns: ['care_receiver_id'];
+            isOneToOne: false;
+            referencedRelation: 'care_receivers';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       daily_logs: {
         Row: DailyLog;
         Insert: DailyLogInsert;
         Update: DailyLogUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'daily_logs_care_receiver_id_fkey';
+            columns: ['care_receiver_id'];
+            isOneToOne: false;
+            referencedRelation: 'care_receivers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'daily_logs_family_member_id_fkey';
+            columns: ['family_member_id'];
+            isOneToOne: false;
+            referencedRelation: 'family_members';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       feedbacks: {
         Row: Feedback;
         Insert: FeedbackInsert;
         Update: FeedbackUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'feedbacks_care_receiver_id_fkey';
+            columns: ['care_receiver_id'];
+            isOneToOne: false;
+            referencedRelation: 'care_receivers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'feedbacks_family_member_id_fkey';
+            columns: ['family_member_id'];
+            isOneToOne: false;
+            referencedRelation: 'family_members';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       satisfaction_surveys: {
         Row: SatisfactionSurvey;
         Insert: SatisfactionSurveyInsert;
         Update: SatisfactionSurveyUpdate;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'satisfaction_surveys_care_receiver_id_fkey';
+            columns: ['care_receiver_id'];
+            isOneToOne: false;
+            referencedRelation: 'care_receivers';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'satisfaction_surveys_family_member_id_fkey';
+            columns: ['family_member_id'];
+            isOneToOne: false;
+            referencedRelation: 'family_members';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
-    Views: {};
-    Functions: {};
+    Views: {
+      feedbacks_view: {
+        Row: FeedbackViewRow;
+        Relationships: [
+          {
+            foreignKeyName: 'feedbacks_care_receiver_id_fkey';
+            columns: ['care_receiver_id'];
+            isOneToOne: false;
+            referencedRelation: 'care_receivers';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+    };
+    Functions: {
+      get_my_care_manager_id: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      get_my_family_member_id: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };

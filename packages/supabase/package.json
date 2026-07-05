@@ -5,7 +5,7 @@
   "scripts": {
     "migrate": "supabase db push",
     "seed": "supabase db reset --seed-only",
-    "generate-types": "supabase gen types typescript --local > ./types/database.ts"
+    "gen:types": "supabase gen types typescript --local > ../shared/src/types/database.generated.ts"
   },
   "devDependencies": {
     "supabase": "^1.200.0"

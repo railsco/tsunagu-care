@@ -1,184 +1,146 @@
-# つなぐケア API ドキュメント
+# データベース設計（実装準拠）
 
-## 概要
+最終更新: 2026-07-06（migration 00004 時点）
 
-つなぐケアは Supabase をバックエンドとして使用しています。
-認証・認可は Supabase Auth と Row Level Security (RLS) で管理されます。
+Supabase (PostgreSQL 15) を使用。スキーマの正は `packages/supabase/migrations/`、
+TypeScript型定義は `packages/shared/src/types/database.ts`。
+本ドキュメントはその要約であり、乖離があればマイグレーションが正。
 
-## 認証
+## テーブル一覧
 
-### サインアップ
+| テーブル | 用途 |
+|---|---|
+| organizations | 介護事業所 |
+| care_managers | ケアマネージャー（Webアプリ利用者） |
+| care_receivers | 介護サービス利用者 |
+| family_members | 利用者の家族（モバイルアプリ利用者） |
+| daily_logs | 家族が入力する日々の介護記録 |
+| feedbacks | ほんね投函（家族からのフィードバック） |
+| satisfaction_surveys | 月次満足度調査（スキーマのみ・UI未実装） |
 
-```typescript
-const { data, error } = await supabase.auth.signUp({
-  email: 'user@example.com',
-  password: 'password123',
-});
-```
+### organizations
 
-### ログイン
+| カラム | 型 | 備考 |
+|---|---|---|
+| id | uuid PK | |
+| name | text NOT NULL | |
+| license_number | text | 事業所番号 |
+| address / phone | text | |
+| plan | text | 'free' / 'standard' / 'premium'（利用制限は未実装） |
+| created_at / updated_at | timestamptz | updated_atはトリガーで自動更新 |
 
-```typescript
-const { data, error } = await supabase.auth.signInWithPassword({
-  email: 'user@example.com',
-  password: 'password123',
-});
-```
+### care_managers
 
-### ログアウト
+| カラム | 型 | 備考 |
+|---|---|---|
+| id | uuid PK | |
+| auth_id | uuid → auth.users(id) | ON DELETE CASCADE |
+| organization_id | uuid → organizations(id) | |
+| name | text NOT NULL | |
+| email | text UNIQUE NOT NULL | |
+| phone | text | |
+| is_active | boolean | |
 
-```typescript
-const { error } = await supabase.auth.signOut();
-```
+### care_receivers
 
-## データモデル
+| カラム | 型 | 備考 |
+|---|---|---|
+| id | uuid PK | |
+| care_manager_id | uuid → care_managers(id) | ON DELETE SET NULL（担当者退職時も利用者は残す） |
+| name | text NOT NULL | |
+| birth_date | date | |
+| gender | text | 'male' / 'female' / 'other' |
+| care_level | text | '要支援1'〜'要介護5'（CHECK制約） |
+| conditions | text[] | 疾患・状態リスト |
+| address / notes | text | |
+| is_active | boolean | 削除はソフトデリート（is_active=false）運用 |
 
-### profiles（プロフィール）
+### family_members
 
-| カラム | 型 | 説明 |
-|--------|------|------|
-| id | uuid | ユーザーID（auth.usersと連携） |
-| email | text | メールアドレス |
-| role | user_role | ロール（care_manager/family） |
-| created_at | timestamptz | 作成日時 |
-| updated_at | timestamptz | 更新日時 |
+| カラム | 型 | 備考 |
+|---|---|---|
+| id | uuid PK | |
+| auth_id | uuid → auth.users(id) | ON DELETE CASCADE |
+| care_receiver_id | uuid → care_receivers(id) | |
+| name / email / phone | text | |
+| relation | text NOT NULL | 続柄（長男・配偶者など） |
+| role | text | 'primary' / 'editor' / 'viewer' |
+| is_primary | boolean | 主たる連絡先 |
 
-### care_managers（ケアマネージャー）
+制約: UNIQUE (care_receiver_id, auth_id) — 同一利用者への重複登録防止
 
-| カラム | 型 | 説明 |
-|--------|------|------|
-| id | uuid | ケアマネージャーID |
-| user_id | uuid | プロフィールID |
-| name | text | 氏名 |
-| organization | text | 所属組織 |
-| phone | text | 電話番号 |
-| created_at | timestamptz | 作成日時 |
-| updated_at | timestamptz | 更新日時 |
+### daily_logs
 
-### care_recipients（利用者）
+| カラム | 型 | 備考 |
+|---|---|---|
+| id | uuid PK | |
+| care_receiver_id | uuid → care_receivers(id) | |
+| family_member_id | uuid → family_members(id) | ON DELETE SET NULL（退会後も記録は残す） |
+| log_date | date NOT NULL | |
+| mood / appetite / sleep_quality / activity_level | integer | 各1〜5（CHECK制約） |
+| notes / concerns | text | |
+| photo_urls | text[] | Storage `photos/daily-logs/` の公開URL |
 
-| カラム | 型 | 説明 |
-|--------|------|------|
-| id | uuid | 利用者ID |
-| care_manager_id | uuid | 担当ケアマネージャーID |
-| name | text | 氏名 |
-| birth_date | date | 生年月日 |
-| care_level | care_level | 介護レベル |
-| notes | text | 備考 |
-| created_at | timestamptz | 作成日時 |
-| updated_at | timestamptz | 更新日時 |
+制約: UNIQUE (care_receiver_id, log_date, family_member_id)
+※ upsert の onConflict はこの3カラムを指定すること
 
-### families（家族）
+### feedbacks
 
-| カラム | 型 | 説明 |
-|--------|------|------|
-| id | uuid | 家族ID |
-| user_id | uuid | プロフィールID |
-| care_recipient_id | uuid | 利用者ID |
-| name | text | 氏名 |
-| relationship | text | 続柄 |
-| phone | text | 電話番号 |
-| created_at | timestamptz | 作成日時 |
-| updated_at | timestamptz | 更新日時 |
+| カラム | 型 | 備考 |
+|---|---|---|
+| id | uuid PK | |
+| care_receiver_id | uuid → care_receivers(id) | |
+| family_member_id | uuid → family_members(id) | ON DELETE SET NULL |
+| category | text | 'service' / 'schedule' / 'cost' / 'communication' / 'other' |
+| content | text NOT NULL | |
+| is_anonymous | boolean | 匿名投稿フラグ |
+| status | text | 'unread' / 'read' / 'addressed' |
+| manager_notes | text | ケアマネの対応メモ |
+| addressed_at | timestamptz | |
 
-### care_records（介護記録）
+### feedbacks_view（読み取り専用VIEW）
 
-| カラム | 型 | 説明 |
-|--------|------|------|
-| id | uuid | 記録ID |
-| care_recipient_id | uuid | 利用者ID |
-| family_id | uuid | 記録者（家族）ID |
-| record_date | date | 記録日 |
-| meal_status | meal_status | 食事状態 |
-| sleep_status | sleep_status | 睡眠状態 |
-| mood | mood_status | 気分 |
-| physical_condition | physical_condition | 体調 |
-| notes | text | メモ |
-| created_at | timestamptz | 作成日時 |
-| updated_at | timestamptz | 更新日時 |
+feedbacks の全カラム＋投稿者情報のフラット射影。**匿名投稿の投稿者秘匿はこのVIEWで担保**する。
 
-## 列挙型
+- `family_member_id` / `family_member_name` / `family_member_relation`:
+  匿名投稿では投稿者本人以外（ケアマネ含む）に NULL で返る
+- `security_invoker = on` のため基底テーブルのRLSが呼び出し元権限で適用される
+- **読み取りは必ずこのVIEWを使う**（webのフィードバック一覧・詳細）。
+  INSERT / UPDATE（ステータス変更・対応メモ）は基底テーブル `feedbacks` に対して行う
 
-### user_role
-- `care_manager`: ケアマネージャー
-- `family`: 家族
+### satisfaction_surveys
 
-### care_level
-- `support_1`: 要支援1
-- `support_2`: 要支援2
-- `care_1`: 要介護1
-- `care_2`: 要介護2
-- `care_3`: 要介護3
-- `care_4`: 要介護4
-- `care_5`: 要介護5
+月次満足度調査。スキーマ・型定義・seedのみ存在し、**UI/ロジックは未実装**（プッシュ通知と合わせてv1.1で実装予定）。
 
-### meal_status
-- `good`: 良好
-- `fair`: 普通
-- `poor`: 少なめ
-- `not_eaten`: 食べていない
+制約: UNIQUE (care_receiver_id, family_member_id, survey_month)
 
-### sleep_status
-- `good`: よく眠れた
-- `fair`: 普通
-- `poor`: あまり眠れなかった
+## RLS（Row Level Security）
 
-### mood_status
-- `good`: 良い
-- `normal`: 普通
-- `poor`: 悪い
+全テーブルで有効。SECURITY DEFINER のヘルパー関数で無限再帰を回避:
 
-### physical_condition
-- `good`: 良好
-- `normal`: 普通
-- `poor`: 悪い
-- `needs_attention`: 要注意
+- `get_my_care_manager_id()` — 自分のケアマネID
+- `get_my_family_member_id()` — 自分の家族メンバーID
+- `get_my_care_receiver_ids_as_family()` / `get_my_care_receiver_ids_as_manager()`
 
-## クエリ例
+方針:
+- ケアマネ: 自事業所・担当利用者・その家族・記録・フィードバックのみ参照可
+- 家族: 自分に紐づく利用者の記録のみ参照可。daily_logs のINSERT/UPDATEは自分の family_member_id 所有分のみ
+- 匿名フィードバック: 家族間は投稿者本人のみSELECT可（RLS）、カラム単位の秘匿は feedbacks_view
 
-### 担当利用者一覧の取得（ケアマネ向け）
+検証用クエリ: `packages/supabase/tests/rls_verification.sql`
 
-```typescript
-const { data, error } = await supabase
-  .from('care_recipients')
-  .select(`
-    *,
-    care_records (
-      record_date,
-      meal_status,
-      sleep_status,
-      mood,
-      physical_condition,
-      notes
-    )
-  `)
-  .order('name');
-```
+## インデックス
 
-### 介護記録の登録（家族向け）
+- daily_logs (care_receiver_id, log_date DESC)
+- feedbacks (care_receiver_id, status)
+- care_receivers (care_manager_id, is_active)
+- care_managers (auth_id) / family_members (auth_id) / family_members (care_receiver_id)
 
-```typescript
-const { data, error } = await supabase
-  .from('care_records')
-  .insert({
-    care_recipient_id: 'uuid',
-    family_id: 'uuid',
-    record_date: '2024-01-15',
-    meal_status: 'good',
-    sleep_status: 'fair',
-    mood: 'good',
-    physical_condition: 'normal',
-    notes: '今日は調子が良さそうでした',
-  });
-```
+## 型生成
 
-### 利用者の最新記録を取得
+supabase CLI＋ローカルDBが使える環境では以下で生成型と手書き型の差分を確認できる:
 
-```typescript
-const { data, error } = await supabase
-  .from('care_records')
-  .select('*')
-  .eq('care_recipient_id', 'uuid')
-  .order('record_date', { ascending: false })
-  .limit(7);
+```bash
+pnpm --filter supabase gen:types
+# → packages/shared/src/types/database.generated.ts に出力して手動比較
 ```

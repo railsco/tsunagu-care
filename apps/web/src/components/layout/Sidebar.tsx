@@ -29,7 +29,7 @@ const navigation = [
     href: '/dashboard/stats',
     icon: BarChart3,
     emoji: '📊',
-    enabled: false, // Phase2
+    enabled: true,
   },
   {
     name: '設定',

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/server';
+import { toFeedbackWithRelations } from '@/lib/feedback';
 import { LogTimeline } from '@/components/daily-log/LogTimeline';
 import { MoodChart } from '@/components/daily-log/MoodChart';
 import { FeedbackSection } from '@/components/feedback/FeedbackSection';
@@ -52,7 +53,7 @@ async function getReceiver(id: string): Promise<CareReceiverWithRelations | null
     .eq('id', id)
     .single();
 
-  return data as unknown as CareReceiverWithRelations | null;
+  return data;
 }
 
 async function getDailyLogs(careReceiverId: string): Promise<DailyLogWithRelations[]> {
@@ -72,30 +73,26 @@ async function getDailyLogs(careReceiverId: string): Promise<DailyLogWithRelatio
     .order('log_date', { ascending: false })
     .limit(30);
 
-  return (data || []) as unknown as DailyLogWithRelations[];
+  return data || [];
 }
 
 async function getFeedbacks(careReceiverId: string): Promise<FeedbackWithRelations[]> {
   const supabase = await createClient();
 
+  // feedbacks_view: 匿名投稿の投稿者情報はデータ層でNULL化される
   const { data } = await supabase
-    .from('feedbacks')
+    .from('feedbacks_view')
     .select(`
       *,
       care_receiver:care_receivers (
         id,
         name
-      ),
-      family_member:family_members (
-        id,
-        name,
-        relation
       )
     `)
     .eq('care_receiver_id', careReceiverId)
     .order('created_at', { ascending: false });
 
-  return (data || []) as unknown as FeedbackWithRelations[];
+  return (data || []).map(toFeedbackWithRelations);
 }
 
 export default async function ReceiverDetailPage({ params }: PageProps) {

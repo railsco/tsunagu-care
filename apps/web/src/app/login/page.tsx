@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { signIn } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function LoginPage() {
@@ -96,8 +98,25 @@ function LoginForm() {
     }
   };
 
-  const handleForgotPassword = () => {
-    alert('パスワードリセット機能は現在準備中です。\n管理者にお問い合わせください。');
+  const handleForgotPassword = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setErrors({ email: 'パスワード再設定にはメールアドレスを入力してください' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success('パスワード再設定用のメールを送信しました。メールをご確認ください');
+    } catch {
+      toast.error('メールの送信に失敗しました。時間をおいて再度お試しください');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

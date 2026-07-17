@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { FeedbackList } from './FeedbackList';
 import { FeedbackDetailDialog } from './FeedbackDetail';
@@ -56,7 +57,7 @@ export function FeedbackSection({ feedbacks: initialFeedbacks }: FeedbackSection
       .eq('id', feedbackId);
 
     if (error) {
-      console.error('Failed to update feedback:', error);
+      toast.error('フィードバックの更新に失敗しました。時間をおいて再度お試しください');
       throw error;
     }
 

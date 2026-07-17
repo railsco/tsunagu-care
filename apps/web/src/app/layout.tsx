@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
+import { Toaster } from 'sonner';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import './globals.css';
 
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="ja" className={notoSansJP.variable}>
       <body className="min-h-screen bg-background font-sans antialiased">
         <AuthProvider>{children}</AuthProvider>
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );

@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import type { FamilyMember, CareReceiver } from '@tsunagu-care/shared';
 
 export type UserRole = 'care_manager' | 'family' | 'unknown';
 
@@ -125,9 +124,7 @@ export async function getFamilyMemberByAuthId(authId: string) {
     throw error;
   }
 
-  return data as unknown as FamilyMember & {
-    care_receiver: Pick<CareReceiver, 'id' | 'name' | 'care_level' | 'birth_date'> | null;
-  };
+  return data;
 }
 
 // 後方互換のためのエイリアス

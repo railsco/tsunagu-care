@@ -36,7 +36,7 @@ export async function checkUserRole(authId: string): Promise<RoleCheckResult> {
   const { data: familyMember, error: fmError } = await supabase
     .from('family_members')
     .select('*')
-    .eq('user_id', authId)
+    .eq('auth_id', authId)
     .single();
 
   if (familyMember && !fmError) {

@@ -22,21 +22,18 @@ const navigation = [
     href: '/dashboard',
     icon: ClipboardList,
     emoji: '📋',
-    enabled: true,
   },
   {
     name: '統計',
     href: '/dashboard/stats',
     icon: BarChart3,
     emoji: '📊',
-    enabled: false, // Phase2
   },
   {
     name: '設定',
     href: '/dashboard/settings',
     icon: Settings,
     emoji: '⚙️',
-    enabled: false, // Phase2
   },
 ];
 
@@ -51,12 +48,7 @@ export function Sidebar() {
     router.push('/login');
   };
 
-  const handleNavClick = (item: typeof navigation[0], e: React.MouseEvent) => {
-    if (!item.enabled) {
-      e.preventDefault();
-      alert('この機能は現在準備中です（Phase 2で実装予定）');
-      return;
-    }
+  const handleNavClick = () => {
     // モバイルメニューを閉じる
     if (mobileMenuOpen) {
       setMobileMenuOpen(false);
@@ -103,27 +95,18 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              onClick={(e) => handleNavClick(item, e)}
+              onClick={handleNavClick}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-teal-700 text-white'
-                  : item.enabled
-                    ? 'text-teal-100 hover:bg-teal-800 hover:text-white'
-                    : 'text-teal-400 cursor-not-allowed opacity-60',
+                  : 'text-teal-100 hover:bg-teal-800 hover:text-white',
                 sidebarCollapsed && 'justify-center px-2'
               )}
               title={sidebarCollapsed ? item.name : undefined}
             >
               <span className="text-lg shrink-0">{item.emoji}</span>
-              {!sidebarCollapsed && (
-                <span className="flex items-center gap-2">
-                  {item.name}
-                  {!item.enabled && (
-                    <span className="text-xs bg-teal-800 px-1.5 py-0.5 rounded">準備中</span>
-                  )}
-                </span>
-              )}
+              {!sidebarCollapsed && <span>{item.name}</span>}
             </Link>
           );
         })}

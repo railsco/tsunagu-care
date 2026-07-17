@@ -1,8 +1,11 @@
 import { View, Text, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+
+const appVersion = Constants.expoConfig?.version ?? '—';
 
 export default function ProfileScreen() {
   const { user, familyMember, careReceiver, signOut, isLoading } = useAuth();
@@ -63,39 +66,18 @@ export default function ProfileScreen() {
         </View>
 
         {/* メニュー */}
+        {/* 通知設定・ヘルプはプッシュ通知実装（v1.1）と合わせて追加予定 */}
         <View className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
-          <Pressable
-            className="flex-row items-center p-4 border-b border-gray-100 active:bg-gray-50"
-            accessibilityRole="button"
-            accessibilityLabel="通知設定"
-          >
-            <View className="w-10 h-10 bg-blue-100 rounded-full items-center justify-center">
-              <Ionicons name="notifications-outline" size={20} color="#3b82f6" />
-            </View>
-            <Text className="flex-1 ml-3 text-base text-gray-800">
-              通知設定
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </Pressable>
-
-          <Pressable
-            className="flex-row items-center p-4 border-b border-gray-100 active:bg-gray-50"
-            accessibilityRole="button"
-            accessibilityLabel="ヘルプ"
-          >
-            <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center">
-              <Ionicons name="help-circle-outline" size={20} color="#22c55e" />
-            </View>
-            <Text className="flex-1 ml-3 text-base text-gray-800">
-              ヘルプ
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </Pressable>
-
           <Pressable
             className="flex-row items-center p-4 active:bg-gray-50"
             accessibilityRole="button"
             accessibilityLabel="アプリについて"
+            onPress={() =>
+              Alert.alert(
+                'つなぐケア',
+                `バージョン ${appVersion}\n\nケアマネージャーと利用者家族をつなぐプラットフォームです。`
+              )
+            }
           >
             <View className="w-10 h-10 bg-purple-100 rounded-full items-center justify-center">
               <Ionicons name="information-circle-outline" size={20} color="#a855f7" />
@@ -123,7 +105,7 @@ export default function ProfileScreen() {
         {/* バージョン情報 */}
         <View className="items-center mt-auto pt-4">
           <Text className="text-sm text-gray-400">
-            つなぐケア v1.0.0
+            つなぐケア v{appVersion}
           </Text>
         </View>
       </View>

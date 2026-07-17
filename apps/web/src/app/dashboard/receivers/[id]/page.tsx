@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/server';
+import { toFeedbackWithRelations } from '@/lib/feedback';
 import { LogTimeline } from '@/components/daily-log/LogTimeline';
 import { MoodChart } from '@/components/daily-log/MoodChart';
 import { FeedbackSection } from '@/components/feedback/FeedbackSection';
 import { calculateAge, formatDate } from '@/lib/utils';
-import { GENDER_LABELS, FAMILY_ROLE_LABELS } from '@tsunagu-care/shared';
+import { GENDER_LABELS, FAMILY_ROLE_LABELS, getCareLevelGroup } from '@tsunagu-care/shared';
 import type {
   CareReceiverWithRelations,
   DailyLogWithRelations,
@@ -23,21 +24,16 @@ interface PageProps {
 
 // 要介護度の色を取得
 function getCareLevelStyle(careLevel: string | null): string {
-  if (!careLevel) return 'bg-gray-100 text-gray-600';
-
-  const level = careLevel.toLowerCase();
-
-  if (level.includes('支援')) {
-    return 'bg-green-100 text-green-700';
+  switch (getCareLevelGroup(careLevel)) {
+    case 'support':
+      return 'bg-green-100 text-green-700';
+    case 'care1-2':
+      return 'bg-yellow-100 text-yellow-700';
+    case 'care3-5':
+      return 'bg-red-100 text-red-700';
+    default:
+      return 'bg-gray-100 text-gray-600';
   }
-  if (level.includes('介護1') || level.includes('介護2')) {
-    return 'bg-yellow-100 text-yellow-700';
-  }
-  if (level.includes('介護3') || level.includes('介護4') || level.includes('介護5')) {
-    return 'bg-red-100 text-red-700';
-  }
-
-  return 'bg-gray-100 text-gray-600';
 }
 
 async function getReceiver(id: string): Promise<CareReceiverWithRelations | null> {
@@ -52,7 +48,7 @@ async function getReceiver(id: string): Promise<CareReceiverWithRelations | null
     .eq('id', id)
     .single();
 
-  return data as unknown as CareReceiverWithRelations | null;
+  return data;
 }
 
 async function getDailyLogs(careReceiverId: string): Promise<DailyLogWithRelations[]> {
@@ -72,30 +68,26 @@ async function getDailyLogs(careReceiverId: string): Promise<DailyLogWithRelatio
     .order('log_date', { ascending: false })
     .limit(30);
 
-  return (data || []) as unknown as DailyLogWithRelations[];
+  return data || [];
 }
 
 async function getFeedbacks(careReceiverId: string): Promise<FeedbackWithRelations[]> {
   const supabase = await createClient();
 
+  // feedbacks_view: 匿名投稿の投稿者情報はデータ層でNULL化される
   const { data } = await supabase
-    .from('feedbacks')
+    .from('feedbacks_view')
     .select(`
       *,
       care_receiver:care_receivers (
         id,
         name
-      ),
-      family_member:family_members (
-        id,
-        name,
-        relation
       )
     `)
     .eq('care_receiver_id', careReceiverId)
     .order('created_at', { ascending: false });
 
-  return (data || []) as unknown as FeedbackWithRelations[];
+  return (data || []).map(toFeedbackWithRelations);
 }
 
 export default async function ReceiverDetailPage({ params }: PageProps) {

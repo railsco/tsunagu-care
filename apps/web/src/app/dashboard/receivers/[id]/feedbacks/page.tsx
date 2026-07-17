@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
+import { toFeedbackWithRelations } from '@/lib/feedback';
 import { FeedbackList } from '@/components/feedback/FeedbackList';
 import type { CareReceiver, FeedbackWithRelations } from '@tsunagu-care/shared';
 
@@ -25,24 +26,20 @@ async function getReceiver(id: string): Promise<CareReceiver | null> {
 async function getFeedbacks(careReceiverId: string): Promise<FeedbackWithRelations[]> {
   const supabase = await createClient();
 
+  // feedbacks_view: 匿名投稿の投稿者情報はデータ層でNULL化される
   const { data } = await supabase
-    .from('feedbacks')
+    .from('feedbacks_view')
     .select(`
       *,
       care_receiver:care_receivers (
         id,
         name
-      ),
-      family_member:family_members (
-        id,
-        name,
-        relation
       )
     `)
     .eq('care_receiver_id', careReceiverId)
     .order('created_at', { ascending: false });
 
-  return (data || []) as unknown as FeedbackWithRelations[];
+  return (data || []).map(toFeedbackWithRelations);
 }
 
 export default async function ReceiverFeedbacksPage({ params }: PageProps) {

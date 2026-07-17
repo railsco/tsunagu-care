@@ -40,7 +40,7 @@ async function getDailyLogs(careReceiverId: string): Promise<DailyLogWithRelatio
     .order('log_date', { ascending: false })
     .limit(30);
 
-  return (data || []) as unknown as DailyLogWithRelations[];
+  return data || [];
 }
 
 export default async function DailyLogsPage({ params }: PageProps) {

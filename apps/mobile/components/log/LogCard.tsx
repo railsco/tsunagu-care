@@ -1,6 +1,7 @@
 import { View, Text, Image } from 'react-native';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
+import { getScoreEmoji } from '@tsunagu-care/shared';
 
 interface LogCardProps {
   log: {
@@ -15,7 +16,6 @@ interface LogCardProps {
   };
 }
 
-const scoreEmojis = ['😢', '😕', '😐', '🙂', '😊'];
 const scoreColors = [
   'bg-red-100 text-red-600',
   'bg-orange-100 text-orange-600',
@@ -33,7 +33,7 @@ function ScoreBadge({
 }) {
   if (score === null) return null;
 
-  const emoji = scoreEmojis[score - 1] || '😐';
+  const emoji = getScoreEmoji(score);
   const colorClass = scoreColors[score - 1] || scoreColors[2];
 
   return (

@@ -1,3 +1,32 @@
+import type { CareLevel } from '../types/database';
+
+// --------------------------------------------
+// 要介護度のグループ判定
+// --------------------------------------------
+
+export type CareLevelGroup = 'support' | 'care1-2' | 'care3-5';
+
+const CARE_LEVEL_GROUP_MAP: Record<CareLevel, CareLevelGroup> = {
+  要支援1: 'support',
+  要支援2: 'support',
+  要介護1: 'care1-2',
+  要介護2: 'care1-2',
+  要介護3: 'care3-5',
+  要介護4: 'care3-5',
+  要介護5: 'care3-5',
+};
+
+/**
+ * 要介護度をUI表示用のグループに分類する
+ * （バッジ色分け・一覧フィルターで共用）
+ */
+export function getCareLevelGroup(
+  careLevel: CareLevel | string | null | undefined
+): CareLevelGroup | null {
+  if (!careLevel) return null;
+  return CARE_LEVEL_GROUP_MAP[careLevel as CareLevel] ?? null;
+}
+
 /**
  * 日付を日本語形式でフォーマット
  */

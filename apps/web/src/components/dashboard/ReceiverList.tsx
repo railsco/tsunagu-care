@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReceiverCard } from './ReceiverCard';
+import { getCareLevelGroup } from '@tsunagu-care/shared';
 import type { ReceiverWithStats } from '@/app/dashboard/page';
 
 type CareLevelFilter = 'all' | 'support' | 'care1-2' | 'care3-5';
@@ -19,20 +20,7 @@ const CARE_LEVEL_FILTERS: { value: CareLevelFilter; label: string }[] = [
 
 function matchesCareLevelFilter(careLevel: string | null, filter: CareLevelFilter): boolean {
   if (filter === 'all') return true;
-  if (!careLevel) return false;
-
-  const level = careLevel.toLowerCase();
-
-  switch (filter) {
-    case 'support':
-      return level.includes('支援');
-    case 'care1-2':
-      return level.includes('介護1') || level.includes('介護2');
-    case 'care3-5':
-      return level.includes('介護3') || level.includes('介護4') || level.includes('介護5');
-    default:
-      return true;
-  }
+  return getCareLevelGroup(careLevel) === filter;
 }
 
 interface ReceiverListProps {
